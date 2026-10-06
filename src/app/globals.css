@@ -1,0 +1,502 @@
+@import 'tailwindcss';
+
+/* `cine:` = cinematic mode (WebGL + motion), `still:` = static fallback mode. */
+@custom-variant cine (&:where([data-cinematic='on'] *));
+@custom-variant still (&:where([data-cinematic='off'] *));
+
+/* Brand colours come from src/config/theme.ts (injected as :root vars in layout.tsx). */
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-iris-a: var(--iris-a);
+  --color-iris-b: var(--iris-b);
+  --color-iris-c: var(--iris-c);
+  --color-hot: var(--hot);
+  --color-signal: var(--signal);
+  --font-display: var(--font-serif-display), 'Times New Roman', serif;
+  --font-sans: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, 'SFMono-Regular', monospace;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+:root {
+  --iris-gradient: linear-gradient(115deg, var(--iris-b), var(--iris-c) 55%, var(--iris-a));
+  /* chromatic fringe used by out-of-focus text (red / cyan, like a misaligned lens) */
+  --fringe-r: rgb(255 72 48 / 0.75);
+  --fringe-c: rgb(48 196 255 / 0.75);
+  --hairline: color-mix(in oklab, currentColor 16%, transparent);
+  --nav-h: 4.5rem;
+  --gutter: clamp(1.25rem, 4vw, 3.5rem);
+  color-scheme: dark;
+}
+
+html {
+  background: var(--ink);
+  color: var(--paper);
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* No body background: negative z-index posters must paint above it (html carries the ink). */
+body {
+  font-family: var(--font-sans);
+  min-height: 100svh;
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--iris-a);
+  color: var(--ink);
+}
+
+/* ─── Focus: always visible for keyboard users ─────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--iris-a);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ─── Type ─────────────────────────────────────────────────────────────── */
+body {
+  font-size: 1rem;
+  line-height: 1.55;
+  font-optical-sizing: auto;
+}
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-feature-settings: 'kern', 'liga';
+  letter-spacing: -0.028em;
+}
+/* italics carry the emphasis in every headline: *word* in practice.ts */
+.font-display em {
+  font-style: italic;
+  letter-spacing: -0.012em;
+  padding-right: 0.04em;
+}
+.accent-em em {
+  color: var(--iris-a);
+}
+.display-xl {
+  font-size: clamp(3.3rem, 11.2vw, 11.8rem);
+  line-height: 0.86;
+}
+.display-lg {
+  font-size: clamp(2.7rem, 7.6vw, 7.6rem);
+  line-height: 0.9;
+}
+.display-md {
+  font-size: clamp(2.2rem, 5vw, 4.9rem);
+  line-height: 0.95;
+}
+/* instrument read-out labels */
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.text-balance {
+  text-wrap: balance;
+}
+.iris-text {
+  background: var(--iris-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Headline lines (structure for the focus-pull reveal; no clipping so fringes can bleed). */
+.mask-line {
+  display: block;
+}
+.mask-line > span {
+  display: block;
+}
+
+.hairline {
+  height: 1px;
+  background: var(--hairline);
+}
+
+/* Hero intro — CSS so it runs from first paint (LCP), no JS required.
+   Each line arrives out of focus with a chromatic fringe, then converges. */
+@keyframes focus-in {
+  /* paint-only properties (no letter-spacing: that would relayout the page every frame) */
+  0% {
+    opacity: 0.12;
+    filter: blur(22px);
+    transform: scale(1.06);
+    text-shadow:
+      -0.09em 0 var(--fringe-r),
+      0.09em 0 var(--fringe-c);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(3px);
+    text-shadow:
+      -0.025em 0 var(--fringe-r),
+      0.025em 0 var(--fringe-c);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+    text-shadow:
+      0 0 transparent,
+      0 0 transparent;
+  }
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+[data-motion='full'] [data-anim='hero-title'] .mask-line > span {
+  transform-origin: 0% 60%;
+  animation: focus-in 1.6s var(--ease-out-expo) 0.1s both;
+}
+[data-motion='full'] [data-anim='hero-title'] .mask-line:nth-child(2) > span {
+  animation-delay: 0.32s;
+}
+[data-motion='full'] [data-anim='hero-kicker'] {
+  animation: fade-up 0.8s var(--ease-out-expo) 0.05s both;
+}
+[data-motion='full'] [data-anim='hero-support'] {
+  animation: fade-up 0.9s var(--ease-out-expo) 0.7s both;
+}
+
+/* ─── Focus brackets (viewfinder corners) ───────────────────────────────── */
+.brackets {
+  --bk: 14px;
+  --bk-inset: 0px;
+  --bk-w: 1px;
+  position: relative;
+}
+.brackets > .bk {
+  position: absolute;
+  width: var(--bk);
+  height: var(--bk);
+  border: 0 solid currentColor;
+  pointer-events: none;
+  transition:
+    transform 0.6s var(--ease-out-expo),
+    opacity 0.4s;
+}
+.brackets > .bk:nth-of-type(1) {
+  top: var(--bk-inset);
+  left: var(--bk-inset);
+  border-top-width: var(--bk-w);
+  border-left-width: var(--bk-w);
+}
+.brackets > .bk:nth-of-type(2) {
+  top: var(--bk-inset);
+  right: var(--bk-inset);
+  border-top-width: var(--bk-w);
+  border-right-width: var(--bk-w);
+}
+.brackets > .bk:nth-of-type(3) {
+  bottom: var(--bk-inset);
+  left: var(--bk-inset);
+  border-bottom-width: var(--bk-w);
+  border-left-width: var(--bk-w);
+}
+.brackets > .bk:nth-of-type(4) {
+  bottom: var(--bk-inset);
+  right: var(--bk-inset);
+  border-bottom-width: var(--bk-w);
+  border-right-width: var(--bk-w);
+}
+/* hover: the brackets "find focus" — they snap in from wide */
+.brackets.bk-hover > .bk {
+  opacity: 0.35;
+}
+.brackets.bk-hover:hover > .bk,
+.brackets.bk-hover:focus-within > .bk {
+  opacity: 1;
+}
+.brackets.bk-hover > .bk:nth-of-type(1) {
+  transform: translate(-6px, -6px);
+}
+.brackets.bk-hover > .bk:nth-of-type(2) {
+  transform: translate(6px, -6px);
+}
+.brackets.bk-hover > .bk:nth-of-type(3) {
+  transform: translate(-6px, 6px);
+}
+.brackets.bk-hover > .bk:nth-of-type(4) {
+  transform: translate(6px, 6px);
+}
+.brackets.bk-hover:hover > .bk,
+.brackets.bk-hover:focus-within > .bk {
+  transform: none;
+}
+
+/* Out-of-focus link hover: text blurs and fringes, then snaps back sharp. */
+.focus-link {
+  transition:
+    filter 0.5s var(--ease-out-expo),
+    text-shadow 0.5s var(--ease-out-expo);
+}
+.focus-link:hover {
+  animation: refocus 0.6s var(--ease-out-expo);
+}
+@keyframes refocus {
+  0% {
+    filter: blur(0);
+  }
+  30% {
+    filter: blur(2.5px);
+    text-shadow:
+      -2px 0 var(--fringe-r),
+      2px 0 var(--fringe-c);
+  }
+  100% {
+    filter: blur(0);
+    text-shadow: none;
+  }
+}
+
+/* Mono tick ruler, used as a hairline divider with measurement ticks. */
+.ruler {
+  height: 9px;
+  background:
+    linear-gradient(currentColor, currentColor) 0 100% / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 10px) 0 100% / 100% 5px
+      no-repeat,
+    repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 50px) 0 100% / 100% 9px
+      no-repeat;
+  opacity: 0.35;
+}
+
+/* ─── Texture ──────────────────────────────────────────────────────────── */
+.grain {
+  pointer-events: none;
+  position: fixed;
+  inset: -50%;
+  z-index: 60;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1.2 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
+  animation: grain 0.9s steps(4) infinite;
+}
+@keyframes grain {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-3%, 2%);
+  }
+  50% {
+    transform: translate(2%, -3%);
+  }
+  75% {
+    transform: translate(-2%, -1%);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+.vignette {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgb(0 0 0 / 0.55) 100%);
+  transition: opacity 0.6s;
+}
+
+/* ─── Cinematic vs static layout ───────────────────────────────────────── */
+/* Static (no JS, reduced motion, no WebGL): every section is self-contained. */
+.scene {
+  position: relative;
+}
+.stage {
+  position: relative;
+  z-index: 10;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: calc(var(--nav-h) + 2rem) var(--gutter) 4rem;
+}
+.cine-only {
+  display: none;
+}
+
+[data-cinematic='on'] .scene-tall {
+  height: var(--h, 200vh);
+}
+[data-cinematic='on'] .scene-tall > .stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
+}
+[data-cinematic='on'] .static-only {
+  display: none !important;
+}
+[data-cinematic='on'] .cine-only {
+  display: revert;
+}
+
+/* Static poster backdrop behind a scene's copy. */
+.poster {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+.poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.42) saturate(0.85);
+}
+.poster::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    var(--ink) 0%,
+    transparent 30%,
+    transparent 60%,
+    var(--ink) 100%
+  );
+}
+
+/* Static-mode reveal (IntersectionObserver adds .is-in). */
+[data-cinematic='off'][data-js='on'][data-motion='full'] .reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.9s var(--ease-out-expo),
+    transform 0.9s var(--ease-out-expo);
+}
+[data-cinematic='off'][data-js='on'][data-motion='full'] .reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Glassy panel used over the 3D scene. */
+.glass {
+  background: color-mix(in oklab, var(--ink) 62%, transparent);
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+}
+
+/* Blink transition overlay (two eyelids sweep closed over the page between chapters). */
+.blink-lid {
+  position: fixed;
+  left: -12vw;
+  right: -12vw;
+  height: 62vh;
+  z-index: 58;
+  pointer-events: none;
+  will-change: transform;
+}
+.blink-lid.top {
+  top: 0;
+  border-radius: 0 0 50% 50% / 0 0 38% 38%;
+  transform: translateY(calc((var(--blink, 0) - 1) * 104%));
+}
+.blink-lid.bottom {
+  bottom: 0;
+  border-radius: 50% 50% 0 0 / 38% 38% 0 0;
+  transform: translateY(calc((1 - var(--blink, 0)) * 104%));
+}
+
+/* ─── Custom cursor (fine pointers only) ───────────────────────────────── */
+[data-cursor-ready='on'] body,
+[data-cursor-ready='on'] a,
+[data-cursor-ready='on'] button,
+[data-cursor-ready='on'] [role='slider'],
+[data-cursor-ready='on'] label {
+  cursor: none;
+}
+[data-cursor-ready='on'] input,
+[data-cursor-ready='on'] textarea {
+  cursor: text;
+}
+[data-cursor-ready='on'] select {
+  cursor: pointer;
+}
+
+/* ─── Misc ─────────────────────────────────────────────────────────────── */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .grain {
+    animation: none;
+  }
+}
+
+/* Rx signature writes itself once the card is in view ([data-seen] set by an observer). */
+[data-js='on'] .rx .rx-sign {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 2.6s var(--ease-in-out-quart) 0.5s;
+}
+[data-js='on'] .rx[data-seen] .rx-sign {
+  stroke-dashoffset: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-js='on'] .rx .rx-sign {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* infinite pulses only run once their block has been seen (no off-screen compositing work) */
+[data-seen] .ping-when-seen {
+  animation: ping 2.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes ping {
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
